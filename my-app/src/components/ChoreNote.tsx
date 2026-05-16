@@ -1,4 +1,4 @@
-import type { Roommate, TaskRow, TaskStatus } from '../lib/types'
+import type { TaskRow, TaskStatus } from '../lib/types'
 import { stringHash } from '../lib/hash'
 
 const STICKIES = ['#FFF3A3', '#BDEBFF', '#FFD6E8', '#D9F99D'] as const
@@ -8,22 +8,23 @@ const BTN =
 
 export default function ChoreNote({
   task,
-  roommate,
   busy,
   onStatus,
+  onDelete,
 }: {
   task: TaskRow
-  roommate?: Roommate
   busy?: boolean
   onStatus: (status: TaskStatus) => void | Promise<void>
+  onDelete: () => void | Promise<void>
 }) {
   const hue = STICKIES[stringHash(task.id) % STICKIES.length]
   const tilt = (((stringHash(task.id) % 140) - 70) / 100) * 5
 
-  const isDone = task.status === 'Done'
+  const isDone = task.status === 'Done' || task.done
   const allegedly = task.status === 'Allegedly Done'
 
   const hand = '"Patrick Hand", cursive'
+  const due = task.due_label?.trim() || 'whenever guilt peaks'
 
   return (
     <article
@@ -51,11 +52,13 @@ export default function ChoreNote({
           className="rounded-md bg-black/12 px-[0.45rem] py-[0.12rem] text-[0.78rem] font-extrabold uppercase tracking-[0.22em]"
           style={{ fontFamily: '"Nunito", sans-serif', color: '#24313A' }}
         >
-          {task.due_label}
+          {due}
         </p>
         <p className="text-right text-[0.95rem] leading-tight" style={{ fontFamily: hand, color: '#24313A' }}>
           on it:{' '}
-          <span className="font-semibold">{roommate ? `${roommate.emoji} ${roommate.name}` : 'unclaimed fridge energy'}</span>
+          <span className="font-semibold">
+            {task.assigned_to?.trim() ? task.assigned_to : 'unclaimed fridge energy'}
+          </span>
         </p>
       </header>
 
@@ -70,10 +73,7 @@ export default function ChoreNote({
       </p>
 
       {isDone && (
-        <div
-          className="pointer-events-none absolute right-[-18px] top-[34%] -rotate-[12deg]"
-          aria-hidden
-        >
+        <div className="pointer-events-none absolute right-[-18px] top-[34%] -rotate-[12deg]" aria-hidden>
           <span
             className="inline-block rounded-2xl border-[4px] border-dashed border-[#24313a]/70 bg-black/92 px-[0.7rem] py-[6px] text-[1.05rem] shadow-[48px_-16px_0_rgba(0,0,0,0.1)] backdrop-blur-sm"
             style={{ fontFamily: "'Baloo 2', sans-serif", color: '#FFF7E8' }}
@@ -84,10 +84,7 @@ export default function ChoreNote({
       )}
 
       {allegedly && !isDone && (
-        <div
-          className="pointer-events-none absolute right-[-10px] top-[30%] rotate-[16deg]"
-          aria-hidden
-        >
+        <div className="pointer-events-none absolute right-[-10px] top-[30%] rotate-[16deg]" aria-hidden>
           <span
             className="inline-block rounded-2xl border-[4px] border-[#ef4444]/60 bg-black/92 px-[0.72rem] py-[8px] text-[1.05rem]"
             style={{ fontFamily: "'Baloo 2', sans-serif", color: '#FFF7E8' }}
@@ -106,6 +103,14 @@ export default function ChoreNote({
         </button>
         <button type="button" className={BTN} disabled={busy} onClick={() => void onStatus('Allegedly Done')}>
           allegedly done
+        </button>
+        <button
+          type="button"
+          className={`${BTN} border-[#ef4444]/25 bg-[#FFD6E8]/90`}
+          disabled={busy}
+          onClick={() => void onDelete()}
+        >
+          yeet task 🗑️
         </button>
       </footer>
     </article>

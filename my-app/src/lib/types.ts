@@ -2,26 +2,29 @@ export type TaskStatus = 'To Do' | 'In Progress' | 'Done' | 'Allegedly Done'
 
 export type DueLabel = 'Tonight' | 'Tomorrow' | 'This Week'
 
-export type UpdateType = 'cleaning' | 'suspicious' | 'ambient'
-
-export interface Roommate {
+/** Fridge magnet sticker (UI only — not loaded from Butterbase). */
+export interface FridgeMagnet {
   id: string
   name: string
   avatar_color: string
   emoji: string
-  created_at: string
 }
 
 export interface TaskRow {
   id: string
   title: string
-  assigned_to: string | null
+  done: boolean
   status: TaskStatus | string
-  due_label: string
+  assigned_to: string | null
+  due_label: string | null
   created_at: string
   updated_at: string
+  user_id: string
 }
 
+export type Roommate = FridgeMagnet
+
+/** Legacy types kept for unused demo components in the repo. */
 export interface CleaningUpdateRow {
   id: string
   message: string

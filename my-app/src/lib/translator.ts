@@ -23,10 +23,10 @@ export function translatePassiveAggressive(input: string): string {
   if (/noise|loud|music|3\s*am|midnight/.test(lower)) {
     return 'vibes check: volume slider could use a wholesome nudge softer pls 💛'
   }
-  if (/mold|bugs|flies|flies\!/.test(lower)) {
+  if (/mold|bugs|flies|flies!/.test(lower)) {
     return 'biohazard DLC detected — teamwork speedrun when someone has bandwidth?'
   }
-  if (/clean|cleaned|kitchen|bathroom/.test(lower) && /\!/.test(raw)) {
+  if (/clean|cleaned|kitchen|bathroom/.test(lower) && /!/.test(raw)) {
     return 'love the energy — can we keep the commune sparkle going in tiny daily wins?'
   }
 
