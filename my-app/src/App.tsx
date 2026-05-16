@@ -1,122 +1,150 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useCallback, useEffect, startTransition, useState } from 'react'
+import type { User } from '@butterbase/sdk'
 
-function App() {
-  const [count, setCount] = useState(0)
+import AuthScreen from './components/AuthScreen'
+import FridgeDashboard from './components/FridgeDashboard'
+import { butterbase } from './lib/butterbase.js'
+import {
+  deleteTaskRow,
+  fetchTasksForUser,
+  insertTaskRow,
+  nowIso,
+  patchForStatus,
+  updateTaskRow,
+} from './lib/tasksApi'
+import type { TaskRow, TaskStatus } from './lib/types'
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null)
+  const [tasks, setTasks] = useState<TaskRow[]>([])
+  const [hydrated, setHydrated] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [loadErr, setLoadErr] = useState<string | null>(null)
+
+  const refreshTasks = useCallback(async (u: User) => {
+    setLoadErr(null)
+    try {
+      const rows = await fetchTasksForUser(u.id)
+      setTasks(rows)
+    } catch (e) {
+      setLoadErr(e instanceof Error ? e.message : String(e))
+    }
+  }, [])
+
+  useEffect(() => {
+    const { unsubscribe } = butterbase.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      if (!session) setTasks([])
+    })
+
+    void (async () => {
+      await butterbase.auth.handleOAuthCallback()
+      const { data } = await butterbase.auth.getUser()
+      if (data) setUser(data)
+      setHydrated(true)
+    })()
+
+    return () => unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    startTransition(() => {
+      void refreshTasks(user)
+    })
+  }, [user, refreshTasks])
+
+  async function handleSignOut() {
+    setBusy(true)
+    await butterbase.auth.signOut()
+    setTasks([])
+    setBusy(false)
+  }
+
+  async function handleAddTask(input: {
+    title: string
+    assigned_to: string | null
+    due_label: 'Tonight' | 'Tomorrow' | 'This Week'
+  }) {
+    if (!user) return
+    setBusy(true)
+    setLoadErr(null)
+    try {
+      await insertTaskRow(input)
+      await refreshTasks(user)
+    } catch (e) {
+      setLoadErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleTaskStatus(task: TaskRow, status: TaskStatus) {
+    if (!user) return
+    setBusy(true)
+    setLoadErr(null)
+    try {
+      const base = patchForStatus(status)
+      await updateTaskRow(task.id, { ...base, updated_at: nowIso() })
+      await refreshTasks(user)
+    } catch (e) {
+      setLoadErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDeleteTask(task: TaskRow) {
+    if (!user) return
+    if (!window.confirm('Yeet this chore into the void? (It will be gone. Like the last pizza slice.)')) return
+    setBusy(true)
+    setLoadErr(null)
+    try {
+      await deleteTaskRow(task.id)
+      await refreshTasks(user)
+    } catch (e) {
+      setLoadErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!hydrated) {
+    return (
+      <div
+        className="grid min-h-svh place-items-center bg-[#FFF7E8] px-6 text-center text-[#24313A]"
+        style={{ fontFamily: '"Patrick Hand", cursive', fontSize: '1.35rem' }}
+      >
+        tuning the condenser coils… please hold your leftovers warmly
+      </div>
+    )
+  }
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      <AuthScreen user={user} />
+      {user && (
+        <>
+          {loadErr && (
+            <div
+              className="fixed bottom-4 left-1/2 z-50 max-w-lg -translate-x-1/2 rounded-2xl border-[3px] border-[#FF6B6B] bg-[#24313A] px-4 py-3 text-sm text-[#FFF7E8] shadow-lg"
+              style={{ fontFamily: '"Nunito", sans-serif' }}
+              role="alert"
+            >
+              {loadErr}
+            </div>
+          )}
+          <FridgeDashboard
+            user={user}
+            tasks={tasks}
+            busy={busy}
+            onSignOut={handleSignOut}
+            onAddTask={handleAddTask}
+            onTaskStatus={handleTaskStatus}
+            onDeleteTask={handleDeleteTask}
+          />
+        </>
+      )}
     </>
   )
 }
-
-export default App
